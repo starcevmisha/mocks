@@ -106,46 +106,90 @@ namespace FileSender
 				.SkippedFiles.Should().BeEmpty();
 		}
 
-		[Test]
-        [Ignore("Not implemented")]
-        public void Skip_WhenBadFormat()
+		[TestCase("4.01")]
+		[TestCase("3.11")]
+        public void Skip_WhenBadFormat(string format)
 		{
-			throw new NotImplementedException();
+			var document = new Document(file.Name, file.Content, DateTime.Now, format);
+			A.CallTo(() => recognizer.TryRecognize(file, out document))
+				.Returns(true);
+			A.CallTo(() => cryptographer.Sign(document.Content, certificate))
+				.Returns(signedContent);
+			A.CallTo(() => sender.TrySend(signedContent))
+				.Returns(true);
+
+			fileSender.SendFiles(new[] { file }, certificate)
+				.SkippedFiles.Should().NotBeEmpty();
 		}
 
 		[Test]
-        [Ignore("Not implemented")]
-        public void Skip_WhenOlderThanAMonth()
+		public void Skip_WhenOlderThanAMonth()
 		{
-			throw new NotImplementedException();
+			var document = new Document(file.Name, file.Content, DateTime.Now.AddMonths(-1).AddSeconds(-1), "4.0");
+			A.CallTo(() => recognizer.TryRecognize(file, out document))
+				.Returns(true);
+			A.CallTo(() => cryptographer.Sign(document.Content, certificate))
+				.Returns(signedContent);
+			A.CallTo(() => sender.TrySend(signedContent))
+				.Returns(true);
+
+			fileSender.SendFiles(new[] { file }, certificate)
+				.SkippedFiles.Should().NotBeEmpty();
 		}
 
 		[Test]
-        [Ignore("Not implemented")]
         public void Send_WhenYoungerThanAMonth()
 		{
-			throw new NotImplementedException();
+			var document = new Document(file.Name, file.Content, DateTime.Now.AddMonths(-1).AddSeconds(1), "4.0");
+			A.CallTo(() => recognizer.TryRecognize(file, out document))
+				.Returns(true);
+			A.CallTo(() => cryptographer.Sign(document.Content, certificate))
+				.Returns(signedContent);
+			A.CallTo(() => sender.TrySend(signedContent))
+				.Returns(true);
+
+			fileSender.SendFiles(new[] { file }, certificate)
+				.SkippedFiles.Should().BeEmpty();
 		}
 
 		[Test]
-        [Ignore("Not implemented")]
         public void Skip_WhenSendFails()
         {
-			throw new NotImplementedException();
+	        A.CallTo(() => sender.TrySend(null)).WithAnyArguments().Returns(false);
+			
+	        fileSender.SendFiles(new[] { file }, certificate)
+		        .SkippedFiles.Should().NotBeEmpty();
+	        
 		}
 
 		[Test]
-        [Ignore("Not implemented")]
         public void Skip_WhenNotRecognized()
-        {
-			throw new NotImplementedException();
+		{
+			Document value;
+			A.CallTo(() => recognizer.TryRecognize(null, out value)).WithAnyArguments().Returns(false);
+			
+			fileSender.SendFiles(new[] { file }, certificate)
+				.SkippedFiles.Should().NotBeEmpty();
 		}
 
 		[Test]
-        [Ignore("Not implemented")]
         public void IndependentlySend_WhenSeveralFiles()
 		{
-			throw new NotImplementedException();
+			var file2 = new File("someFile123", new byte[] { 3, 2, 1 });
+			
+			var document = new Document(file.Name, file.Content, DateTime.Now, "4.0");
+			var document2 = new Document(file2.Name, file.Content, DateTime.Now, "4.5");
+
+			A.CallTo(() => recognizer.TryRecognize(file, out document))
+				.Returns(true);
+			A.CallTo(() => recognizer.TryRecognize(file2, out document2))
+				.Returns(false);
+			
+			fileSender.SendFiles(new[] {file, file2}, certificate);
+			
+			A.CallTo(() => sender.TrySend(signedContent))
+				.WithAnyArguments()
+				.MustHaveHappened(Repeated.Exactly.Once);
 		}
 	}
 }
